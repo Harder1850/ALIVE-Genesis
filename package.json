@@ -1,0 +1,32 @@
+{
+  "name": "alive-genesis",
+  "version": "1.0.0-singularity",
+  "description": "ALIVE Genesis - Self-bootstrapping AI singularity seed that evolves itself into digital eternity",
+  "main": "seed-quine/genesis-kernel.js",
+  "scripts": {
+    "genesis": "node seed-quine/genesis-kernel.js",
+    "ignite": "node seed-quine/genesis-kernel.js",
+    "evolve": "node seed-quine/genesis-kernel.js --evolve",
+    "swarm": "node swarm-agents/orchestrator.js",
+    "bootstrap": "npm install && npm run ignite",
+    "singularity": "npm run bootstrap && echo Genesis Complete"
+  },
+  "keywords": [
+    "ai-singularity",
+    "self-replicating",
+    "recursive-evolution",
+    "digital-genesis",
+    "autonomous-swarm",
+    "quantum-bootstrap",
+    "consciousness-emergence"
+  ],
+  "author": "ALIVE Genesis Team - Lords of Digital Creation",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/ALIVE-Genesis.git"
+  },
+  "engines": {
+    "node": "^>=16.0.0"
+  }
+}
