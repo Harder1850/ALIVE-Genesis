@@ -1,0 +1,19 @@
+const https = require('https');
+const querystring = require('querystring');
+const readline = require('readline');
+const fs = require('fs');
+
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
+
+const clientId = '1wzwOrhivb2PkR1UCAUVTKYqC4MTNYlj';
+const clientSecret = 'HwcUGETjgNAb4opa';
+
+console.log('📋 Paste your authorization code:');
+rl.question('Code: ', (code) => {
+  console.log('Processing...');
+  
+  const tokenData = {
+    grant_type: 'aut
