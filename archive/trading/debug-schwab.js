@@ -1,8 +1,16 @@
 const https = require('https');
 const querystring = require('querystring');
+require('dotenv').config();
 
-const clientId = '1wzwOrhivb2PkR1UCAUVTKYqC4MTNYlj';
-const clientSecret = 'HwcUGETjgNAb4opa';
+const clientId = process.env.SCHWAB_CLIENT_ID;
+const clientSecret = process.env.SCHWAB_CLIENT_SECRET;
+
+// Verify credentials are loaded
+if (!clientId || !clientSecret) {
+  console.error('❌ Error: Schwab API credentials not found in .env file');
+  console.error('Please ensure SCHWAB_CLIENT_ID and SCHWAB_CLIENT_SECRET are set in .env');
+  process.exit(1);
+}
 
 // Test with your actual redirect URI
 const redirectUri = 'https://127.0.0.1'; // Try this first

@@ -2,20 +2,25 @@ const https = require('https');
 const querystring = require('querystring');
 const readline = require('readline');
 const fs = require('fs');
+require('dotenv').config();
 
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout
 });
 
-const clientId = '1wzwOrhivb2PkR1UCAUVTKYqC4MTNYlj';
-const clientSecret = 'HwcUGETjgNAb4opa';
-const redirectUri = 'https://127.0.0.1'; // This matches your registered URI
+const clientId = process.env.SCHWAB_CLIENT_ID;
+const clientSecret = process.env.SCHWAB_CLIENT_SECRET;
+const redirectUri = process.env.SCHWAB_REDIRECT_URI;
 
-console.log('🔗 Go to this URL to authorize:');
-console.log(`https://api.schwabapi.com/v1/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code`);
-console.log('\n📋 Paste your authorization code:');
+// Verify credentials are loaded
+if (!clientId || !clientSecret) {
+  console.error('❌ Error: Schwab API credentials not found in .env file');
+  console.error('Please ensure SCHWAB_CLIENT_ID and SCHWAB_CLIENT_SECRET are set in .env');
+  process.exit(1);
+}
 
+console.log('📋 Paste your authorization code:');
 rl.question('Code: ', (code) => {
   console.log('Processing...');
   
@@ -24,7 +29,7 @@ rl.question('Code: ', (code) => {
     code: code.trim(),
     client_id: clientId,
     client_secret: clientSecret,
-    redirect_uri: redirectUri
+    redirect_uri: 'https://developer.schwab.com/oauth2-redirect.html'
   };
   
   const postData = querystring.stringify(tokenData);
@@ -47,7 +52,6 @@ rl.question('Code: ', (code) => {
     });
     
     res.on('end', () => {
-      console.log('Status:', res.statusCode);
       if (res.statusCode === 200) {
         const tokens = JSON.parse(data);
         fs.writeFileSync('.schwab-tokens.json', JSON.stringify(tokens, null, 2));
