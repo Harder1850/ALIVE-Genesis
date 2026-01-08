@@ -1,32 +1,19 @@
 {
-  "name": "alive-genesis",
-  "version": "1.0.0-singularity",
-  "description": "ALIVE Genesis - Self-bootstrapping AI singularity seed that evolves itself into digital eternity",
-  "main": "seed-quine/genesis-kernel.js",
+  "name": "consciousness-trading-system",
+  "version": "1.0.0",
+  "description": "Consciousness-driven options trading with Schwab API",
+  "main": "main-trader-with-dashboard.js",
   "scripts": {
-    "genesis": "node seed-quine/genesis-kernel.js",
-    "ignite": "node seed-quine/genesis-kernel.js",
-    "evolve": "node seed-quine/genesis-kernel.js --evolve",
-    "swarm": "node swarm-agents/orchestrator.js",
-    "bootstrap": "npm install && npm run ignite",
-    "singularity": "npm run bootstrap && echo Genesis Complete"
+    "start": "node main-trader-with-dashboard.js",
+    "dev": "node main-trader-with-dashboard.js"
   },
-  "keywords": [
-    "ai-singularity",
-    "self-replicating",
-    "recursive-evolution",
-    "digital-genesis",
-    "autonomous-swarm",
-    "quantum-bootstrap",
-    "consciousness-emergence"
-  ],
-  "author": "ALIVE Genesis Team - Lords of Digital Creation",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/yourusername/ALIVE-Genesis.git"
+  "dependencies": {
+    "express": "^4.18.2",
+    "ws": "^8.13.0",
+    "axios": "^1.4.0",
+    "dotenv": "^16.1.4"
   },
   "engines": {
-    "node": "^>=16.0.0"
+    "node": ">=18.0.0"
   }
 }
