@@ -14,8 +14,79 @@ const { safeWriteStdout } = require('../utils/checkpoint-writer');
 const args = process.argv.slice(2);
 const command = args[0];
 
-// Check if this is being called as ALIVE (uppercase) for legacy commands
-const isUppercase = process.argv[1].includes('ALIVE');
+// Check if this is being called as ALIVE (uppercase) for legacy commands.
+// Note: tests can force legacy routing by setting ALIVE_CLI_NAME=ALIVE.
+const isUppercase = process.argv[1].includes('ALIVE') || process.env.ALIVE_CLI_NAME === 'ALIVE';
+
+/**
+ * Legacy router for global `ALIVE` subcommands.
+ *
+ * Important: This only runs for the uppercase binary name (ALIVE),
+ * and ONLY for legacy entrypoints. The new contract for `alive`
+ * remains strict: run/status/stop/help.
+ */
+function tryHandleUppercaseLegacyRouter() {
+  if (!isUppercase) return false;
+
+  const legacyCommand = args[0];
+  const legacySubcommand = args[1];
+
+  // NOTE: This is intentionally checked BEFORE any contract validation.
+  switch (legacyCommand) {
+    case 'hardware': {
+      // Forward: ALIVE hardware <...> -> hardware/cli.js <...>
+      // Keep argv shape consistent for the delegated CLI.
+      try {
+        process.argv = ['node', 'hardware/cli.js', ...args.slice(1)];
+        require('../hardware/cli.js');
+        return true;
+      } catch (error) {
+        // Structured error so callers can still parse JSON if desired.
+        const output = {
+          ok: false,
+          error: 'Legacy command routing failed: hardware',
+          message: error.message,
+          errors: [error.message]
+        };
+        safeWriteStdout(output, { taskName: 'legacy-hardware-missing', validateResponse: false });
+        process.exit(2);
+      }
+    }
+
+    case 'debug': {
+      if (legacySubcommand === 'meta') {
+        // Forward to existing meta debug entrypoint.
+        try {
+          const { debugMeta } = require('../ui/cli_meta.js');
+          debugMeta();
+          return true;
+        } catch (error) {
+          const output = {
+            ok: false,
+            error: 'Legacy command routing failed: debug meta',
+            message: error.message,
+            errors: [error.message]
+          };
+          safeWriteStdout(output, { taskName: 'legacy-debug-meta-failed', validateResponse: false });
+          process.exit(2);
+        }
+      }
+
+      // Other debug subcommands are legacy/non-contract. Provide a helpful message.
+      console.log('Available debug commands: meta');
+      process.exit(0);
+    }
+
+    case 'start': {
+      // Preserve existing behavior: start cooking CLI
+      require('../ui/cli.js');
+      return true;
+    }
+
+    default:
+      return false;
+  }
+}
 
 const options = {
   bot: 'alive-bot',
@@ -335,11 +406,10 @@ async function handleLegacyCommands() {
  */
 (async () => {
   try {
-    // Handle legacy ALIVE commands first (uppercase)
-    if (isUppercase && !['run', 'status', 'stop', 'help'].includes(command)) {
-      const handled = await handleLegacyCommands();
-      if (handled) return;
-    }
+    // Handle legacy ALIVE commands first (uppercase) BEFORE contract validation.
+    // This restores older global subcommands without loosening the new contract.
+    const routed = tryHandleUppercaseLegacyRouter();
+    if (routed) return;
     
     // Handle contract commands
     switch (command) {
