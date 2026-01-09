@@ -46,7 +46,7 @@ class ALIVEKernel {
             
             // Check for reset condition
             if (this.resetController.shouldReset(assessment, this.workingMemory)) {
-                console.log('🔄 Reset triggered - coherence break detected');
+                process.stderr.write('🔄 Reset triggered - coherence break detected\n');
                 await this.reset();
                 return this.process(userInput, { ...context, resetTriggered: true });
             }
@@ -100,7 +100,7 @@ class ALIVEKernel {
             } catch (metaError) {
                 // MetaLoop recording is optional, continue if it fails
                 if (context.debug) {
-                    console.error('MetaLoop recording failed:', metaError.message);
+                    process.stderr.write(`MetaLoop recording failed: ${metaError.message}\n`);
                 }
             }
             
@@ -117,7 +117,7 @@ class ALIVEKernel {
             };
             
         } catch (error) {
-            console.error('Kernel error:', error);
+            process.stderr.write(`Kernel error: ${error.message}\n`);
             return {
                 success: false,
                 error: error.message,
@@ -216,7 +216,7 @@ class ALIVEKernel {
     async reset() {
         const snapshot = this.workingMemory.snapshot();
         
-        console.log('📸 Snapshotting working memory before reset');
+        process.stderr.write('📸 Snapshotting working memory before reset\n');
         
         // Store what was learned
         if (snapshot.learned && snapshot.learned.length > 0) {
@@ -236,7 +236,7 @@ class ALIVEKernel {
         // Reset loop counter
         this.loopCount = 0;
         
-        console.log('✨ Reset complete - starting fresh');
+        process.stderr.write('✨ Reset complete - starting fresh\n');
     }
 
     /**
@@ -247,7 +247,7 @@ class ALIVEKernel {
             throw new Error(`Invalid mode: ${mode}`);
         }
         this.mode = mode;
-        console.log(`🎯 Mode set to: ${mode}`);
+        process.stderr.write(`🎯 Mode set to: ${mode}\n`);
     }
 
     /**
