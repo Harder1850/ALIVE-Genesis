@@ -63,37 +63,46 @@ class ALIVEKernel {
             // (f) Remember
             await this.remember(streamEntry, assessment, triage, result);
             
-            // (f.1) MetaLoop - Record and Review (Observer only)
-            const { MetaLoop } = require('../meta/metaloop');
-            const meta = new MetaLoop();
             const elapsed = Date.now() - startTime;
             
-            meta.record({
-                domain: 'cooking',
-                taskType: assessment.inputType || 'general',
-                assessment: {
-                    urgency: assessment.urgency,
-                    stakes: assessment.stakes,
-                    difficulty: assessment.difficulty,
-                    precision: assessment.precision
-                },
-                metrics: {
-                    timeMs: elapsed,
-                    stepCount: result.result?.results?.length || 0,
-                    lookupUsed: result.result?.results?.some(r => 
-                        r.task?.includes('lookup') || r.task?.includes('search') || r.task?.includes('gather')
-                    ) || false,
-                    lookupChangedOutcome: false, // Could enhance later
-                    resetTriggered: false
-                },
-                outcome: {
-                    status: result.success ? 'success' : 'fail',
-                    userCorrections: 0
-                },
-                inputs: {
-                    querySummary: String(userInput).substring(0, 100)
+            // (f.1) MetaLoop - Record and Review (Observer only)
+            try {
+                const MetaLoopModule = require('../meta/metaloop');
+                const MetaLoop = MetaLoopModule.MetaLoop || MetaLoopModule;
+                const meta = new MetaLoop();
+                
+                meta.record({
+                    domain: 'cooking',
+                    taskType: assessment.inputType || 'general',
+                    assessment: {
+                        urgency: assessment.urgency,
+                        stakes: assessment.stakes,
+                        difficulty: assessment.difficulty,
+                        precision: assessment.precision
+                    },
+                    metrics: {
+                        timeMs: elapsed,
+                        stepCount: result.result?.results?.length || 0,
+                        lookupUsed: result.result?.results?.some(r => 
+                            r.task?.includes('lookup') || r.task?.includes('search') || r.task?.includes('gather')
+                        ) || false,
+                        lookupChangedOutcome: false, // Could enhance later
+                        resetTriggered: false
+                    },
+                    outcome: {
+                        status: result.success ? 'success' : 'fail',
+                        userCorrections: 0
+                    },
+                    inputs: {
+                        querySummary: String(userInput).substring(0, 100)
+                    }
+                });
+            } catch (metaError) {
+                // MetaLoop recording is optional, continue if it fails
+                if (context.debug) {
+                    console.error('MetaLoop recording failed:', metaError.message);
                 }
-            });
+            }
             
             // (g) Reset if needed (already handled above)
             
@@ -299,4 +308,129 @@ class ALIVEKernel {
     }
 }
 
+/**
+ * Standalone activate function for CLI integration
+ * Contract-compliant wrapper around kernel.process()
+ */
+async function activate({ taskInput, specialty, debug, statePath, botId }) {
+    const startTime = Date.now();
+    
+    try {
+        // Validate input
+        if (!taskInput || typeof taskInput !== 'string' || taskInput.trim() === '') {
+            return {
+                ok: false,
+                response: '',
+                confidence: 0,
+                errors: ['Task input is required and must be a non-empty string'],
+                meta: { timingMs: Date.now() - startTime }
+            };
+        }
+        
+        // Create kernel instance
+        const kernel = new ALIVEKernel();
+        
+        // Set mode based on specialty if provided
+        if (specialty) {
+            // Future: map specialty to mode
+        }
+        
+        // Suppress console logs for clean JSON output
+        const originalLog = console.log;
+        const originalError = console.error;
+        if (!debug) {
+            console.log = () => {}; // Suppress stdout logs
+            console.error = () => {}; // Suppress stderr logs
+        }
+        
+        let result;
+        try {
+            // Process task through full kernel pipeline
+            result = await kernel.process(taskInput, {
+                specialty,
+                debug,
+                statePath,
+                botId,
+                source: 'cli'
+            });
+        } finally {
+            // Restore console
+            console.log = originalLog;
+            console.error = originalError;
+        }
+        
+        const timingMs = Date.now() - startTime;
+        
+        // Map kernel result to contract format
+        if (result.success) {
+            // Extract response from result
+            let response = '';
+            if (result.result && result.result.result) {
+                // Handle executor output
+                const execResult = result.result.result;
+                if (typeof execResult === 'string') {
+                    response = execResult;
+                } else if (execResult.results && Array.isArray(execResult.results)) {
+                    // Concatenate multi-step results
+                    response = execResult.results
+                        .map(r => r.result || r.output || '')
+                        .filter(Boolean)
+                        .join('\n');
+                } else {
+                    response = JSON.stringify(execResult);
+                }
+            } else if (result.result) {
+                response = typeof result.result === 'string' 
+                    ? result.result 
+                    : JSON.stringify(result.result);
+            } else {
+                response = `Task processed: ${taskInput}`;
+            }
+            
+            // Calculate confidence based on assessment
+            let confidence = 0.5; // Default
+            if (result.assessment) {
+                // Higher confidence for lower difficulty and higher precision
+                const difficultyFactor = 1 - (result.assessment.difficulty || 0.5);
+                const precisionFactor = result.assessment.precision || 0.5;
+                confidence = (difficultyFactor + precisionFactor) / 2;
+                confidence = Math.max(0.3, Math.min(0.95, confidence)); // Clamp 0.3-0.95
+            }
+            
+            return {
+                ok: true,
+                response: response || `Processed: ${taskInput}`,
+                confidence,
+                errors: [],
+                meta: {
+                    timingMs,
+                    loopCount: result.loopCount,
+                    assessment: result.assessment,
+                    mode: kernel.mode
+                }
+            };
+        } else {
+            // Kernel processing failed
+            return {
+                ok: false,
+                response: result.error || 'Task processing failed',
+                confidence: 0,
+                errors: [result.error || 'Unknown kernel error'],
+                meta: { timingMs }
+            };
+        }
+        
+    } catch (error) {
+        // Unexpected error
+        return {
+            ok: false,
+            response: '',
+            confidence: 0,
+            errors: [error.message || 'Kernel activation failed'],
+            meta: { timingMs: Date.now() - startTime }
+        };
+    }
+}
+
 module.exports = ALIVEKernel;
+module.exports.activate = activate;
