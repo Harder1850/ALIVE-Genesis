@@ -46,4 +46,24 @@ for (const file of files) {
   }
 }
 
+// Also run optional contract tests under /test (separate from /tests convention)
+const contractTestPath = path.join(__dirname, '..', 'test', 'mirror.contract.test.js');
+if (fs.existsSync(contractTestPath)) {
+  const file = path.basename(contractTestPath);
+  console.log(`\n--- ${file} ---`);
+
+  const result = spawnSync(process.execPath, [contractTestPath], {
+    stdio: 'inherit',
+    env: process.env,
+  });
+
+  if (result.error) {
+    console.error(`Failed to run ${file}:`, result.error);
+    process.exit(1);
+  }
+  if (typeof result.status !== 'number' || result.status !== 0) {
+    process.exit(typeof result.status === 'number' ? result.status : 1);
+  }
+}
+
 console.log('\n✅ All tests completed successfully');

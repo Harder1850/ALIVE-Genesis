@@ -1,12 +1,15 @@
 node_modules/
-uploads/
-shared/
-.env
-*.log
 dist/
 build/
 
-# ALIVE runtime data
-data/*.json
-data/*.jsonl
+# env/logs
+.env
+*.log
+
+# ALIVE runtime data (must not be committed)
+data/
+
+# legacy/other runtime dirs (kept for safety)
+uploads/
+shared/
 
