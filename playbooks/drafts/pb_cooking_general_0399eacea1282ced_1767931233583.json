@@ -1,0 +1,43 @@
+{
+  "id": "pb_cooking_general_0399eacea1282ced",
+  "version": "0.1",
+  "createdAt": "2026-01-09T04:00:33.583Z",
+  "domain": "cooking",
+  "taskType": "general",
+  "trigger": {
+    "description": "Auto-drafted from repeated successful runs",
+    "patternKey": "cooking|general|0399eacea1282ced",
+    "minSuccessCount": 3,
+    "inputsExample": {
+      "querySummary": "hello"
+    }
+  },
+  "steps": [
+    {
+      "name": "Orient",
+      "notes": "Classify request and constraints"
+    },
+    {
+      "name": "Triage",
+      "notes": "Pick top priorities and dependencies"
+    },
+    {
+      "name": "Execute",
+      "notes": "Run minimal action sequence"
+    },
+    {
+      "name": "Validate",
+      "notes": "Check outcome criteria"
+    }
+  ],
+  "validation": {
+    "precision": "flexible",
+    "successCriteria": [
+      "Outcome status == success",
+      "No user corrections in strict mode"
+    ]
+  },
+  "notes": {
+    "whyPromoted": "Same pattern succeeded repeatedly; capturing as reusable playbook draft."
+  }
+}

@@ -41,17 +41,27 @@ class MetaLoop {
     this.dataDir = opts.dataDir || path.join(this.repoRoot, "data");
     this.playbookDraftDir =
       opts.playbookDraftDir || path.join(this.repoRoot, "playbooks", "drafts");
+    this.playbookActiveDir =
+      opts.playbookActiveDir || path.join(this.repoRoot, "playbooks", "active");
 
     this.promoteAfter = clampInt(opts.promoteAfter ?? 3, 2, 10);
     this.maxRecentScan = clampInt(opts.maxRecentScan ?? 200, 50, 2000);
+    
+    // Task 3: Staleness threshold (days)
+    this.stalenessThresholdDays = clampInt(opts.stalenessThresholdDays ?? 30, 1, 365);
+    
+    // Debug mode: gate stderr logging
+    this.debug = opts.debug || process.env.METALOOP_DEBUG === '1';
 
     ensureDir(this.dataDir);
     ensureDir(this.playbookDraftDir);
+    ensureDir(this.playbookActiveDir);
 
     this.runlogPath = path.join(this.dataDir, "runlog.jsonl");
     this.metaStatePath = path.join(this.dataDir, "meta_state.json");
 
     this.state = this._loadState();
+    this.activePlaybooks = this._loadActivePlaybooks();
   }
 
   _loadState() {
@@ -63,15 +73,302 @@ class MetaLoop {
         lookupBias: s.lookupBias || {},
         // Track drafts already written to avoid duplicates
         draftedKeys: s.draftedKeys || {},
+        // Track active playbook usage (Checkpoint 3)
+        activeUsedCountById: s.activeUsedCountById || {},
+        lastUsedAtById: s.lastUsedAtById || {},
+        // Track playbook statistics (Task 2)
+        firstUsedAtById: s.firstUsedAtById || {},
+        usageHistoryById: s.usageHistoryById || {}, // Array of timestamps per playbook
       };
     } catch {
-      return { lookupBias: {}, draftedKeys: {} };
+      return { 
+        lookupBias: {}, 
+        draftedKeys: {},
+        activeUsedCountById: {},
+        lastUsedAtById: {},
+        firstUsedAtById: {},
+        usageHistoryById: {},
+      };
     }
   }
 
   _saveState() {
-    fs.writeFileSync(this.metaStatePath, JSON.stringify(this.state, null, 2), "utf8");
+    // Atomic write: write to temp file then rename
+    // Use unique temp file name to avoid collisions in rapid writes
+    const tempPath = `${this.metaStatePath}.tmp.${process.pid}.${Date.now()}`;
+    const content = JSON.stringify(this.state, null, 2);
+    
+    try {
+      fs.writeFileSync(tempPath, content, "utf8");
+      // Windows-safe rename (will overwrite existing file)
+      if (fs.existsSync(this.metaStatePath)) {
+        fs.unlinkSync(this.metaStatePath);
+      }
+      fs.renameSync(tempPath, this.metaStatePath);
+    } catch (err) {
+      // Cleanup temp file if operation failed
+      if (fs.existsSync(tempPath)) {
+        try {
+          fs.unlinkSync(tempPath);
+        } catch {}
+      }
+      throw err;
+    }
   }
+
+  // ========== ACTIVE PLAYBOOK METHODS (Checkpoint 3) ==========
+
+  /**
+   * Load all active playbooks from playbooks/active/
+   * Returns array of playbook objects with their pattern keys
+   */
+  _loadActivePlaybooks() {
+    const playbooks = [];
+    
+    try {
+      if (!fs.existsSync(this.playbookActiveDir)) return playbooks;
+      
+      const files = fs.readdirSync(this.playbookActiveDir)
+        .filter(f => f.endsWith('.json'));
+      
+      for (const file of files) {
+        try {
+          const filepath = path.join(this.playbookActiveDir, file);
+          const content = fs.readFileSync(filepath, 'utf8');
+          const playbook = JSON.parse(content);
+          
+          // Validate required fields
+          if (playbook.id && playbook.trigger && playbook.trigger.patternKey) {
+            playbooks.push({
+              ...playbook,
+              _filepath: filepath,
+            });
+          }
+        } catch (err) {
+          // Skip invalid playbook files
+          process.stderr.write(`Warning: Could not load playbook ${file}: ${err.message}\n`);
+        }
+      }
+    } catch (err) {
+      // Directory read failed, return empty array
+    }
+    
+    return playbooks;
+  }
+
+  /**
+   * Find an active playbook matching the given pattern key
+   * @param {string} patternKey - normalized pattern key
+   * @returns {object|null} playbook or null
+   */
+  _findActivePlaybook(patternKey) {
+    if (!this.activePlaybooks || this.activePlaybooks.length === 0) {
+      return null;
+    }
+    
+    return this.activePlaybooks.find(pb => pb.trigger.patternKey === patternKey) || null;
+  }
+
+  /**
+   * Record usage of an active playbook
+   * Updates usage stats in state (Task 2: enhanced statistics)
+   * @param {string} playbookId
+   * @param {string} patternKey
+   */
+  recordPlaybookUse(playbookId, patternKey) {
+    const now = nowIso();
+    
+    // Increment use count
+    const currentCount = this.state.activeUsedCountById[playbookId] || 0;
+    this.state.activeUsedCountById[playbookId] = currentCount + 1;
+    
+    // Track first use (Task 2)
+    if (!this.state.firstUsedAtById[playbookId]) {
+      this.state.firstUsedAtById[playbookId] = now;
+    }
+    
+    // Update last used timestamp
+    this.state.lastUsedAtById[playbookId] = now;
+    
+    // Track usage history (Task 2) - keep last 100 timestamps per playbook
+    if (!this.state.usageHistoryById[playbookId]) {
+      this.state.usageHistoryById[playbookId] = [];
+    }
+    this.state.usageHistoryById[playbookId].push(now);
+    // Limit history to last 100 entries to prevent unbounded growth
+    if (this.state.usageHistoryById[playbookId].length > 100) {
+      this.state.usageHistoryById[playbookId] = this.state.usageHistoryById[playbookId].slice(-100);
+    }
+    
+    // Save state atomically
+    this._saveState();
+    
+    return {
+      playbookId,
+      patternKey,
+      useCount: this.state.activeUsedCountById[playbookId],
+      lastUsedAt: this.state.lastUsedAtById[playbookId],
+      firstUsedAt: this.state.firstUsedAtById[playbookId],
+    };
+  }
+
+  /**
+   * Get enhanced statistics for a playbook (Task 2)
+   * @param {string} playbookId
+   * @returns {object|null} stats object or null if playbook not tracked
+   */
+  getPlaybookStats(playbookId) {
+    const useCount = this.state.activeUsedCountById[playbookId];
+    if (!useCount) return null; // Not tracked yet
+    
+    const firstUsedAt = this.state.firstUsedAtById[playbookId];
+    const lastUsedAt = this.state.lastUsedAtById[playbookId];
+    const history = this.state.usageHistoryById[playbookId] || [];
+    
+    // Calculate average interval between uses
+    let avgIntervalMs = null;
+    if (history.length >= 2) {
+      const intervals = [];
+      for (let i = 1; i < history.length; i++) {
+        const prevTime = new Date(history[i - 1]).getTime();
+        const currTime = new Date(history[i]).getTime();
+        intervals.push(currTime - prevTime);
+      }
+      const sum = intervals.reduce((a, b) => a + b, 0);
+      avgIntervalMs = Math.round(sum / intervals.length);
+    }
+    
+    // Calculate days since first use
+    let daysSinceFirstUse = null;
+    if (firstUsedAt) {
+      const firstTime = new Date(firstUsedAt).getTime();
+      const nowTime = Date.now();
+      daysSinceFirstUse = Math.round((nowTime - firstTime) / (1000 * 60 * 60 * 24));
+    }
+    
+    // Calculate days since last use
+    let daysSinceLastUse = null;
+    if (lastUsedAt) {
+      const lastTime = new Date(lastUsedAt).getTime();
+      const nowTime = Date.now();
+      daysSinceLastUse = Math.round((nowTime - lastTime) / (1000 * 60 * 60 * 24));
+    }
+    
+    return {
+      playbookId,
+      useCount,
+      firstUsedAt,
+      lastUsedAt,
+      daysSinceFirstUse,
+      daysSinceLastUse,
+      avgIntervalMs,
+      avgIntervalHours: avgIntervalMs ? Math.round(avgIntervalMs / (1000 * 60 * 60) * 10) / 10 : null,
+      historyLength: history.length,
+    };
+  }
+
+  /**
+   * Check if a playbook is considered stale (Task 3 - Observer Only)
+   * Does NOT alter matching behavior or delete anything
+   * @param {string} playbookId
+   * @returns {boolean} true if stale, false otherwise
+   */
+  isPlaybookStale(playbookId) {
+    const stats = this.getPlaybookStats(playbookId);
+    if (!stats) return false; // Not tracked = not stale
+    
+    // A playbook is stale if it hasn't been used for more than threshold days
+    return stats.daysSinceLastUse !== null && stats.daysSinceLastUse > this.stalenessThresholdDays;
+  }
+
+  /**
+   * Get all active playbooks with their statistics
+   * TASK 1: CLI Introspection helper (no CLI command yet)
+   * @returns {array} Array of playbook objects with stats
+   */
+  getAllActivePlaybooksWithStats() {
+    return this.activePlaybooks.map(pb => {
+      const stats = this.getPlaybookStats(pb.id);
+      const isStale = this.isPlaybookStale(pb.id);
+      
+      return {
+        id: pb.id,
+        domain: pb.domain,
+        taskType: pb.taskType,
+        patternKey: pb.trigger.patternKey,
+        description: pb.trigger.description || null,
+        stats: stats || { useCount: 0 },
+        isStale,
+        responsePrefix: pb.responseHints?.prefix || null,
+      };
+    });
+  }
+
+  /**
+   * Get all draft playbooks with promotion counts
+   * TASK 1: CLI Introspection helper
+   * @returns {array} Array of draft playbook info
+   */
+  getAllDraftPlaybooks() {
+    const drafts = [];
+    
+    try {
+      if (!fs.existsSync(this.playbookDraftDir)) return drafts;
+      
+      const files = fs.readdirSync(this.playbookDraftDir)
+        .filter(f => f.endsWith('.json'));
+      
+      for (const file of files) {
+        try {
+          const filepath = path.join(this.playbookDraftDir, file);
+          const content = fs.readFileSync(filepath, 'utf8');
+          const draft = JSON.parse(content);
+          
+          // Check if already promoted (tracked in draftedKeys)
+          const draftInfo = this.state.draftedKeys[draft.trigger?.patternKey];
+          
+          drafts.push({
+            id: draft.id,
+            domain: draft.domain,
+            taskType: draft.taskType,
+            patternKey: draft.trigger?.patternKey,
+            minSuccessCount: draft.trigger?.minSuccessCount || 0,
+            createdAt: draft.createdAt,
+            filepath,
+            draftedAt: draftInfo?.draftedAt || null,
+          });
+        } catch (err) {
+          // Skip invalid drafts
+        }
+      }
+    } catch (err) {
+      // Directory read failed
+    }
+    
+    return drafts;
+  }
+
+  /**
+   * Get all stale playbooks
+   * TASK 1: CLI Introspection helper
+   * @returns {array} Array of stale playbook info
+   */
+  getStalePlaybooks() {
+    return this.activePlaybooks
+      .filter(pb => this.isPlaybookStale(pb.id))
+      .map(pb => {
+        const stats = this.getPlaybookStats(pb.id);
+        return {
+          id: pb.id,
+          domain: pb.domain,
+          taskType: pb.taskType,
+          patternKey: pb.trigger.patternKey,
+          stats,
+        };
+      });
+  }
+
+  // ========== END ACTIVE PLAYBOOK METHODS ==========
 
   /**
    * Record a completed run, then perform after-action review.
@@ -134,12 +431,35 @@ class MetaLoop {
 
   /**
    * After-action review: flag waste, adjust lookup bias, and draft playbooks if repeated success.
+   * Also checks for active playbook matches and records usage.
    * @param {object} run - sanitized run object
    */
   afterActionReview(run) {
     const wasteFlags = [];
     const candidatePromotions = [];
     const policyAdjustments = [];
+    let playbookMatch = null;
+
+    // 0) Check for active playbook match (Checkpoint 3)
+    const patternKey = this._patternKey(run);
+    const activePlaybook = this._findActivePlaybook(patternKey);
+    
+    if (activePlaybook) {
+      const usage = this.recordPlaybookUse(activePlaybook.id, patternKey);
+      playbookMatch = {
+        playbookId: activePlaybook.id,
+        patternKey,
+        useCount: usage.useCount,
+        stepNames: activePlaybook.steps?.map(s => s.name) || [],
+        responsePrefix: activePlaybook.responseHints?.prefix || null,
+        responseOutline: activePlaybook.responseHints?.outline || null,  // TASK 2
+      };
+      
+      // Log to stderr only if debug enabled
+      if (this.debug) {
+        process.stderr.write(`📗 MetaLoop: Active playbook "${activePlaybook.id}" matched (use #${usage.useCount})\n`);
+      }
+    }
 
     // 1) Infer whether lookup mattered
     const decisionChanged =
@@ -186,7 +506,9 @@ class MetaLoop {
         to: newBias,
       });
       
-      console.log(`🔄 MetaLoop: Adjusted lookup bias for "${biasKey}": ${prevBias.toFixed(2)} → ${newBias.toFixed(2)}`);
+      if (this.debug) {
+        process.stderr.write(`🔄 MetaLoop: Adjusted lookup bias for "${biasKey}": ${prevBias.toFixed(2)} → ${newBias.toFixed(2)}\n`);
+      }
     }
 
     // 4) Draft playbook on repeats (simple: 3 successful runs with same "pattern key")
@@ -205,8 +527,10 @@ class MetaLoop {
           draftPath,
         });
         
-        console.log(`📝 MetaLoop: Created playbook draft "${draft.id}" (${count} successful uses)`);
-        console.log(`   Location: ${draftPath}`);
+        if (this.debug) {
+          process.stderr.write(`📝 MetaLoop: Created playbook draft "${draft.id}" (${count} successful uses)\n`);
+          process.stderr.write(`   Location: ${draftPath}\n`);
+        }
       }
     }
 
@@ -220,6 +544,7 @@ class MetaLoop {
       wasteFlags,
       policyAdjustments,
       candidatePromotions,
+      playbookMatch,
     };
   }
 
@@ -237,15 +562,122 @@ class MetaLoop {
     return false;
   }
 
+  // ========== NORMALIZATION HELPERS (Checkpoint 2) ==========
+  
+  /**
+   * Normalize text: lowercase, remove punctuation, collapse whitespace
+   */
+  _normalizeText(s) {
+    if (typeof s !== 'string') return '';
+    return s
+      .toLowerCase()
+      .replace(/[^\w\s]/g, ' ')  // Replace punctuation with space
+      .replace(/\s+/g, ' ')       // Collapse whitespace
+      .trim();
+  }
+
+  /**
+   * Normalize taskType via synonym map
+   */
+  _normalizeTaskType(taskType) {
+    const normalized = (taskType || '').toLowerCase().trim();
+    
+    // Synonym map
+    const synonyms = {
+      'difference': 'compare',
+      'vs': 'compare',
+      'versus': 'compare',
+      'which is better': 'compare',
+      'better': 'compare',
+      'how to': 'howto',
+      'steps': 'howto',
+      'instructions': 'howto',
+    };
+    
+    return synonyms[normalized] || normalized;
+  }
+
+  /**
+   * Bucket assessment fields to avoid tiny numeric changes breaking matches
+   */
+  _bucketAssessment(assessment) {
+    const bucket = (val) => {
+      if (typeof val === 'string') {
+        const lower = val.toLowerCase();
+        if (lower === 'low' || lower === 'easy' || lower === 'later') return 'low';
+        if (lower === 'med' || lower === 'medium' || lower === 'moderate' || lower === 'soon') return 'med';
+        if (lower === 'high' || lower === 'hard' || lower === 'critical' || lower === 'now') return 'high';
+        return lower;
+      }
+      if (typeof val === 'number') {
+        if (val < 0.34) return 'low';
+        if (val < 0.67) return 'med';
+        return 'high';
+      }
+      return 'low'; // default
+    };
+
+    return {
+      urgency: bucket(assessment.urgency),
+      stakes: bucket(assessment.stakes),
+      difficulty: bucket(assessment.difficulty),
+      precision: (assessment.precision || 'flexible').toLowerCase(),
+    };
+  }
+
+  /**
+   * Extract 1-3 "entities" (longest meaningful tokens) from text
+   */
+  _extractEntitiesFromText(text) {
+    const normalized = this._normalizeText(text);
+    
+    // Simple stopwords list
+    const stopwords = new Set([
+      'a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
+      'of', 'with', 'by', 'from', 'is', 'are', 'was', 'were', 'be', 'been',
+      'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'should',
+      'can', 'could', 'may', 'might', 'must', 'this', 'that', 'these', 'those',
+      'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them',
+      'my', 'your', 'his', 'her', 'its', 'our', 'their', 'please', 'help',
+    ]);
+
+    const words = normalized.split(/\s+/).filter(w => w.length >= 4 && !stopwords.has(w));
+    
+    // Sort by length (longest first), then alphabetically for stability
+    words.sort((a, b) => {
+      if (b.length !== a.length) return b.length - a.length;
+      return a.localeCompare(b);
+    });
+
+    // Return top 3 unique entities
+    return [...new Set(words)].slice(0, 3);
+  }
+
+  /**
+   * Normalize intent from a run object for better pattern matching
+   */
+  _normalizeIntent(run) {
+    const querySummary = run.inputs?.querySummary || '';
+    
+    return {
+      domain: (run.domain || 'unknown').toLowerCase().trim(),
+      taskType: this._normalizeTaskType(run.taskType),
+      intent: {
+        queryNorm: this._normalizeText(querySummary),
+        entities: this._extractEntitiesFromText(querySummary),
+      },
+      assessment: this._bucketAssessment(run.assessment || {}),
+    };
+  }
+
+  // ========== END NORMALIZATION ==========
+
   _patternKey(run) {
     // Build a pattern key that ignores cosmetic differences but captures intent.
-    // Keep it simple: domain + taskType + a small hashed "intent signature"
-    const intentSig = stableHash({
-      // caller-provided summary should be stable-ish (e.g., target dish, constraints)
-      inputs: run.inputs,
-      assessment: run.assessment,
-    });
-    return `${run.domain}|${run.taskType}|${intentSig}`;
+    // Uses normalization to increase match rate for same-intent queries.
+    const normalized = this._normalizeIntent(run);
+    const intentSig = stableHash(normalized);
+    return `${normalized.domain}|${normalized.taskType}|${intentSig}`;
   }
 
   _readRecentRuns() {
@@ -319,6 +751,96 @@ class MetaLoop {
   }
 
   /**
+   * Generate full audit snapshot for system state review (TASK 3)
+   * Returns comprehensive snapshot of MetaLoop state + playbooks
+   * Deterministic output for auditability
+   * @returns {object} Complete audit snapshot
+   */
+  generateAuditSnapshot() {
+    const timestamp = nowIso();
+    
+    // 1. State snapshot
+    const stateSnapshot = {
+      lookupBias: { ...this.state.lookupBias },
+      draftedKeysCount: Object.keys(this.state.draftedKeys).length,
+      draftedKeys: Object.keys(this.state.draftedKeys),
+      activePlaybookTracking: {
+        trackedCount: Object.keys(this.state.activeUsedCountById).length,
+        totalUses: Object.values(this.state.activeUsedCountById).reduce((a, b) => a + b, 0),
+      },
+    };
+    
+    // 2. Active playbooks with full stats
+    const activePlaybooksSnapshot = this.getAllActivePlaybooksWithStats();
+    
+    // 3. Draft playbooks summary
+    const draftPlaybooksSnapshot = this.getAllDraftPlaybooks();
+    
+    // 4. Stale playbooks
+    const stalePlaybooksSnapshot = this.getStalePlaybooks();
+    
+    // 5. Runlog summary
+    const runs = this._readRecentRuns();
+    const runlogSnapshot = {
+      totalEntriesScanned: runs.length,
+      oldestEntry: runs.length > 0 ? runs[0].ts : null,
+      newestEntry: runs.length > 0 ? runs[runs.length - 1].ts : null,
+      successCount: runs.filter(r => r.outcome?.status === 'success').length,
+      failCount: runs.filter(r => r.outcome?.status === 'fail').length,
+      partialCount: runs.filter(r => r.outcome?.status === 'partial').length,
+    };
+    
+    // 6. Pattern distribution (top 10)
+    const patternCounts = new Map();
+    runs.forEach(r => {
+      try {
+        const key = this._patternKey(r);
+        patternCounts.set(key, (patternCounts.get(key) || 0) + 1);
+      } catch {}
+    });
+    
+    const topPatterns = [...patternCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([key, count]) => ({ patternKey: key, occurrences: count }));
+    
+    return {
+      snapshotVersion: '1.0',
+      timestamp,
+      config: {
+        promoteAfter: this.promoteAfter,
+        maxRecentScan: this.maxRecentScan,
+        stalenessThresholdDays: this.stalenessThresholdDays,
+      },
+      state: stateSnapshot,
+      activePlaybooks: {
+        count: activePlaybooksSnapshot.length,
+        playbooks: activePlaybooksSnapshot,
+      },
+      draftPlaybooks: {
+        count: draftPlaybooksSnapshot.length,
+        playbooks: draftPlaybooksSnapshot,
+      },
+      stalePlaybooks: {
+        count: stalePlaybooksSnapshot.length,
+        playbooks: stalePlaybooksSnapshot,
+      },
+      runlog: runlogSnapshot,
+      patterns: {
+        topPatterns,
+      },
+      paths: {
+        repoRoot: this.repoRoot,
+        dataDir: this.dataDir,
+        playbookDraftDir: this.playbookDraftDir,
+        playbookActiveDir: this.playbookActiveDir,
+        runlogPath: this.runlogPath,
+        metaStatePath: this.metaStatePath,
+      },
+    };
+  }
+
+  /**
    * Debug helper: returns last N runs + current policy state.
    */
   debugSnapshot(limit = 10) {
@@ -334,7 +856,5 @@ class MetaLoop {
   }
 }
 
-// Singleton instance
-const instance = new MetaLoop();
+module.exports = { MetaLoop };
 
-module.exports = instance;

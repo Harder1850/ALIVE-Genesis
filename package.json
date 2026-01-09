@@ -12,7 +12,7 @@
     "alive": "node bin/alive.js",
     "dev": "node ui/cli.js",
     "cli": "node ui/cli.js",
-    "test": "node tests/kernel.test.js",
+    "test": "node tests/run-all-tests.js",
     "test:contract": "node bin/contract_test.js",
     "hardware": "node bin/alive-cli.js hardware",
     "hardware:demo": "node bin/alive-cli.js hardware demo",

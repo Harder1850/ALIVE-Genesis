@@ -1,0 +1,43 @@
+{
+  "id": "pb_cooking_compare_2946ad0a8a9de096",
+  "version": "0.1",
+  "createdAt": "2026-01-09T03:41:01.690Z",
+  "domain": "cooking",
+  "taskType": "compare",
+  "trigger": {
+    "description": "Auto-drafted from repeated successful runs",
+    "patternKey": "cooking|compare|2946ad0a8a9de096",
+    "minSuccessCount": 3,
+    "inputsExample": {
+      "querySummary": "compare recipes for brownies"
+    }
+  },
+  "steps": [
+    {
+      "name": "Orient",
+      "notes": "Classify request and constraints"
+    },
+    {
+      "name": "Triage",
+      "notes": "Pick top priorities and dependencies"
+    },
+    {
+      "name": "Execute",
+      "notes": "Run minimal action sequence"
+    },
+    {
+      "name": "Validate",
+      "notes": "Check outcome criteria"
+    }
+  ],
+  "validation": {
+    "precision": "flexible",
+    "successCriteria": [
+      "Outcome status == success",
+      "No user corrections in strict mode"
+    ]
+  },
+  "notes": {
+    "whyPromoted": "Same pattern succeeded repeatedly; capturing as reusable playbook draft."
+  }
+}

@@ -8,6 +8,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { safeWriteStdout } = require('../utils/checkpoint-writer');
 
 // Parse arguments
 const args = process.argv.slice(2);
@@ -172,8 +173,8 @@ async function runTask(taskText) {
     exitCode = 2; // Boot/contract failure
   }
   
-  // Single exit point
-  process.stdout.write(JSON.stringify(output, null, 2) + '\n');
+  // Single exit point - use safe writer to prevent empty content blocks
+  safeWriteStdout(output, { taskName: taskId });
   process.exit(exitCode);
 }
 
@@ -194,7 +195,7 @@ async function showStatus() {
       lastActivity: state.lastActivity
     };
     
-    console.log(JSON.stringify(output, null, 2));
+    safeWriteStdout(output, { taskName: 'status', validateResponse: false });
     process.exit(0);
     
   } catch (error) {
@@ -208,7 +209,7 @@ async function showStatus() {
       lastActivity: null
     };
     
-    console.log(JSON.stringify(output, null, 2));
+    safeWriteStdout(output, { taskName: 'status-error', validateResponse: false });
     process.exit(2);
   }
 }
@@ -233,7 +234,7 @@ async function stopOrganism() {
       errors: []
     };
     
-    console.log(JSON.stringify(output, null, 2));
+    safeWriteStdout(output, { taskName: 'stop', validateResponse: false });
     process.exit(0);
     
   } catch (error) {
@@ -245,7 +246,7 @@ async function stopOrganism() {
       errors: [error.message]
     };
     
-    console.log(JSON.stringify(output, null, 2));
+    safeWriteStdout(output, { taskName: 'stop-error', validateResponse: false });
     process.exit(2);
   }
 }
@@ -369,7 +370,7 @@ async function handleLegacyCommands() {
           available_commands: ['run', 'status', 'stop', 'help'],
           errors: [`Unknown command: ${command || '(none)'}`]
         };
-        console.log(JSON.stringify(output, null, 2));
+        safeWriteStdout(output, { taskName: 'unknown-command', validateResponse: false });
         process.exit(2);
     }
   } catch (error) {
@@ -380,7 +381,7 @@ async function handleLegacyCommands() {
       message: error.message,
       errors: [error.message]
     };
-    console.log(JSON.stringify(output, null, 2));
+    safeWriteStdout(output, { taskName: 'boot-failure', validateResponse: false });
     process.exit(2);
   }
 })();

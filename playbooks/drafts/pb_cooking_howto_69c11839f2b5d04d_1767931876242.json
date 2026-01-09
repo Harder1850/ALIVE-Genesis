@@ -1,0 +1,43 @@
+{
+  "id": "pb_cooking_howto_69c11839f2b5d04d",
+  "version": "0.1",
+  "createdAt": "2026-01-09T04:11:16.242Z",
+  "domain": "cooking",
+  "taskType": "howto",
+  "trigger": {
+    "description": "Auto-drafted from repeated successful runs",
+    "patternKey": "cooking|howto|69c11839f2b5d04d",
+    "minSuccessCount": 3,
+    "inputsExample": {
+      "querySummary": "how to make pasta"
+    }
+  },
+  "steps": [
+    {
+      "name": "Orient",
+      "notes": "Classify request and constraints"
+    },
+    {
+      "name": "Triage",
+      "notes": "Pick top priorities and dependencies"
+    },
+    {
+      "name": "Execute",
+      "notes": "Run minimal action sequence"
+    },
+    {
+      "name": "Validate",
+      "notes": "Check outcome criteria"
+    }
+  ],
+  "validation": {
+    "precision": "flexible",
+    "successCriteria": [
+      "Outcome status == success",
+      "No user corrections in strict mode"
+    ]
+  },
+  "notes": {
+    "whyPromoted": "Same pattern succeeded repeatedly; capturing as reusable playbook draft."
+  }
+}

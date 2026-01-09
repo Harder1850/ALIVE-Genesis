@@ -1,0 +1,40 @@
+{
+  "id": "pb_cooking_compare_3c090840a1339477",
+  "version": "0.1",
+  "createdAt": "2026-01-08T22:00:00.000Z",
+  "domain": "cooking",
+  "taskType": "compare",
+  "trigger": {
+    "description": "Compare brownie recipes - manually promoted from drafts for testing",
+    "patternKey": "cooking|compare|3c090840a1339477",
+    "minSuccessCount": 3,
+    "inputsExample": {
+      "querySummary": "compare recipes for brownies"
+    }
+  },
+  "steps": [
+    { "name": "Orient", "notes": "Classify request - brownie recipe comparison" },
+    { "name": "Triage", "notes": "Gather 2-3 candidate recipes" },
+    { "name": "Execute", "notes": "Extract core ingredients and steps" },
+    { "name": "Validate", "notes": "Present comparison table" }
+  ],
+  "validation": {
+    "precision": "flexible",
+    "successCriteria": [
+      "Outcome status == success",
+      "Comparison table with key differences"
+    ]
+  },
+  "notes": {
+    "whyPromoted": "Manually promoted for Checkpoint 3 testing - matches normalized brownie comparison queries"
+  },
+  "responseHints": {
+    "prefix": "[Using proven recipe comparison playbook] ",
+    "outline": [
+      "Recipe Candidates",
+      "Key Ingredients Comparison",
+      "Method Differences",
+      "Recommended Choice"
+    ]
+  }
+}

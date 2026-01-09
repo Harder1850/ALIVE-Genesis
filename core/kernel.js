@@ -67,11 +67,10 @@ class ALIVEKernel {
             
             // (f.1) MetaLoop - Record and Review (Observer only)
             try {
-                const MetaLoopModule = require('../meta/metaloop');
-                const MetaLoop = MetaLoopModule.MetaLoop || MetaLoopModule;
+                const { MetaLoop } = require('../meta/MetaLoop');
                 const meta = new MetaLoop();
                 
-                meta.record({
+                meta.recordAndReview({
                     domain: 'cooking',
                     taskType: assessment.inputType || 'general',
                     assessment: {

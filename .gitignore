@@ -5,3 +5,8 @@ shared/
 *.log
 dist/
 build/
+
+# ALIVE runtime data
+data/*.json
+data/*.jsonl
+
