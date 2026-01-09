@@ -1,14 +1,35 @@
 {
-  "name": "consciousness-trading-system",
-  "version": "1.0.0",
-  "description": "Consciousness-driven options trading with Schwab API",
-  "main": "main-trader-with-dashboard.js",
-  "scripts": {
-    "start": "node main-trader-with-dashboard.js",
-    "dev": "node main-trader-with-dashboard.js"
+  "name": "alive-cooking-mvp",
+  "version": "2.0.0",
+  "description": "ALIVE Cooking MVP - AI Organism with triage, budget, and memory tiers",
+  "main": "core/kernel.js",
+  "bin": {
+    "alive": "bin/alive.js",
+    "ALIVE": "bin/alive.js"
   },
+  "scripts": {
+    "start": "node bin/alive-cli.js start",
+    "alive": "node bin/alive.js",
+    "dev": "node ui/cli.js",
+    "cli": "node ui/cli.js",
+    "test": "node tests/kernel.test.js",
+    "test:contract": "node bin/contract_test.js",
+    "hardware": "node bin/alive-cli.js hardware",
+    "hardware:demo": "node bin/alive-cli.js hardware demo",
+    "hardware:status": "node bin/alive-cli.js hardware status",
+    "hardware:observe": "node bin/alive-cli.js hardware observe"
+  },
+  "keywords": [
+    "ai",
+    "cooking",
+    "recipes",
+    "organism",
+    "triage",
+    "memory"
+  ],
   "dependencies": {
     "express": "^4.18.2",
+    "cors": "^2.8.5",
     "ws": "^8.13.0",
     "axios": "^1.4.0",
     "dotenv": "^16.1.4"

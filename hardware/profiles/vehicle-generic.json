@@ -1,0 +1,39 @@
+{
+  "deviceType": "vehicle-generic",
+  "description": "Generic vehicle profile with basic capabilities",
+  "interfaces": ["api"],
+  "capabilities": [
+    "speed_monitoring",
+    "battery_status",
+    "location_tracking",
+    "energy_monitoring"
+  ],
+  "modules": [
+    {
+      "name": "Drivetrain",
+      "type": "powertrain",
+      "dataChannels": ["speed", "acceleration", "energy"],
+      "controlAPI": ["throttle", "brake"]
+    },
+    {
+      "name": "Battery",
+      "type": "power",
+      "dataChannels": ["battery", "voltage", "temperature"],
+      "controlAPI": []
+    },
+    {
+      "name": "Navigation",
+      "type": "positioning",
+      "dataChannels": ["latitude", "longitude", "heading"],
+      "controlAPI": []
+    }
+  ],
+  "safeCommands": [
+    "throttle_adjust",
+    "acceleration_limit",
+    "speed_limit"
+  ],
+  "signature": {
+    "type": "vehicle"
+  }
+}

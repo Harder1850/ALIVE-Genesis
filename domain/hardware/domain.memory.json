@@ -1,0 +1,40 @@
+{
+  "hw_known_devices": {
+    "description": "Registry of known device types and their profiles",
+    "devices": {
+      "vehicle-generic": {
+        "category": "vehicle",
+        "safetyLevel": "high",
+        "requiresApproval": true
+      },
+      "robot-generic": {
+        "category": "robot",
+        "safetyLevel": "medium",
+        "requiresApproval": true
+      }
+    }
+  },
+  "hw_safety_protocols": {
+    "description": "Safety protocols for hardware operations",
+    "protocols": {
+      "emergency_stop": {
+        "trigger": "immediate",
+        "action": "halt_all_operations"
+      },
+      "user_override": {
+        "priority": "maximum",
+        "action": "yield_control"
+      }
+    }
+  },
+  "hw_best_practices": {
+    "description": "Best practices for hardware integration",
+    "practices": [
+      "Always start with passive observation",
+      "Test in simulation before live deployment",
+      "Use staged rollout (shadow -> limited -> full)",
+      "Maintain audit logs",
+      "Keep manual override accessible"
+    ]
+  }
+}
