@@ -1,0 +1,46 @@
+name: Playbook Task (PB-xxxx)
+description: Add a playbook task for Clive to implement safely.
+title: "PB-XXXX: <short title>"
+labels: ["pb", "clive"]
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What outcome do you want?
+      placeholder: "Implement inner-dialogue ticker (non-core) with trace logging."
+    validations:
+      required: true
+
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints (READ THIS)
+      description: Hard rules.
+      value: |
+        - DO NOT modify frozen core contracts (docs/ALIVE-Contracts.md).
+        - Prefer additive changes under src/ (new modules).
+        - Keep deterministic tests.
+        - Update/extend CLI only in bin/alive-cli.js (not frozen bin/alive.js).
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      placeholder: |
+        - npm run test:<name> passes
+        - Adds/updates tests
+        - Logs traces to data/runlog.jsonl
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes / Context
+      placeholder: "Any references, prior PB numbers, or examples."
+    validations:
+      required: false
+
