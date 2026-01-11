@@ -252,6 +252,24 @@ This is a personal project for Mikey. If extending:
 
 ---
 
+## 📱 Creating PB / EXP Tasks from GitHub Mobile
+
+This repo includes **GitHub Issue Forms** so you can create structured tasks quickly from your phone.
+
+1. Open the repo in **GitHub Mobile**
+2. Tap **Issues** → **New issue**
+3. Pick a template:
+   - **Playbook Task (PB-xxxx)** → for implementation work
+   - **Experiment (EXP-xxxx)** → for hypotheses + benchmarks
+   - **Bug Report** → for break/fix with repro steps
+4. Fill the fields and submit
+
+Tips:
+- Put the short identifier up front in the title: `PB-0123: ...` or `EXP-0042: ...`
+- Keep constraints explicit (especially anything touching **FREEZE.md**)
+
+---
+
 **Built with**: Node.js 18+
 **License**: See LICENSE file
 **Version**: 2.0.0 - ALIVE Cooking MVP

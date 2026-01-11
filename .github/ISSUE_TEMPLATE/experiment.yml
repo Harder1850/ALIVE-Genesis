@@ -1,0 +1,58 @@
+name: Experiment (EXP-xxxx)
+description: Propose an experiment/hypothesis for Clive to run (safe + reversible).
+title: "EXP-XXXX: <short title>"
+labels: ["exp", "clive"]
+body:
+  - type: textarea
+    id: hypothesis
+    attributes:
+      label: Hypothesis
+      description: What do you think will be true if the experiment is successful?
+      placeholder: "If we add a shadow-cache TTL, memory recall latency drops without hurting accuracy."
+    validations:
+      required: true
+
+  - type: textarea
+    id: experiment
+    attributes:
+      label: Experiment Plan
+      description: Steps Clive should implement/run.
+      placeholder: |
+        - Add instrumentation
+        - Implement change behind a flag
+        - Run benchmark script
+        - Compare before/after numbers
+    validations:
+      required: true
+
+  - type: textarea
+    id: success
+    attributes:
+      label: Success Criteria
+      placeholder: |
+        - Metric improves by X%
+        - No regressions in tests
+        - Change is reversible (flag or isolated module)
+    validations:
+      required: true
+
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints
+      value: |
+        - DO NOT modify frozen core modules (see FREEZE.md).
+        - Prefer additive changes under src/.
+        - Keep tests deterministic.
+        - Provide rollback path.
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes / Context
+      placeholder: "Links, prior EXP numbers, baseline data, etc."
+    validations:
+      required: false
+
