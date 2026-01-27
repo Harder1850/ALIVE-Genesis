@@ -1,3 +1,17 @@
+# ⚠️ ARCHIVED — HISTORICAL R&D (NOT PART OF ACTIVE ALIVE)
+
+**This repository contains early experimental research predating ALIVE's constitutional architecture (STG, execution gating, authority separation).**
+
+**It is NOT wired into the ALIVE system.**  
+**It has NO authority.**  
+**It must NOT be used as a reference for current architecture.**
+
+This repository is retained solely for research and code mining.
+
+**👉 The active contained cognition system is:** `alive-genesis-sandbox`
+
+---
+
 # 🧬 ALIVE Cooking MVP - Organism System
 
 **A**utonomous **L**earning **I**ntelligence with **V**ersatile **E**xecution
