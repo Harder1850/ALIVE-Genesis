@@ -1,0 +1,24 @@
+name: Bug Report
+description: Something broke. Make it reproducible.
+title: "BUG: <short title>"
+labels: ["bug", "clive"]
+body:
+  - type: textarea
+    id: repro
+    attributes:
+      label: Repro Steps
+      placeholder: |
+        1) command
+        2) command
+        3) expected vs actual
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / Output
+      placeholder: "Paste terminal output or error message."
+    validations:
+      required: false
+
